@@ -2,8 +2,8 @@ pipeline {
   agent any
 
   environment {
-    IMAGE = "jashwanth00/ticket-booking:latest"   // set your image
-    DOCKER_CRED = "jashwanth00"            // your Jenkins credential id
+    IMAGE = "jashwanth00/ticket-booking:latest"   // <-- set your image
+    DOCKER_CRED = "jashwanth00"            // <-- credential id in Jenkins
   }
 
   stages {
@@ -11,12 +11,10 @@ pipeline {
       steps { checkout scm }
     }
 
-    stage('Docker login') {
+    stage('Docker login (pre-build)') {
       steps {
-        // Perform docker login before any docker build/pull happens
         withCredentials([usernamePassword(credentialsId: env.DOCKER_CRED, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-          // for Windows agents (bat)
-          bat 'echo Logging into Docker...'
+          bat 'echo Logging into Docker before build...'
           bat 'echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin'
         }
       }
@@ -24,34 +22,52 @@ pipeline {
 
     stage('Tool check') {
       steps {
-        bat 'node -v'
-        bat 'docker --version'
+        bat 'echo Node: && node -v'
+        bat 'echo NPM: && npm -v'
+        bat 'echo Docker: && docker --version'
+        bat 'echo Kubectl: && kubectl version --client'
+      }
+    }
+
+    stage('Install dependencies') {
+      steps {
+        bat 'npm install'
       }
     }
 
     stage('Build image') {
       steps {
-        // Optionally disable BuildKit if you want classic build:
-        // bat 'set DOCKER_BUILDKIT=0 && docker build -t %IMAGE% .'
+        // If BuildKit causes auth problems, use DOCKER_BUILDKIT=0
         bat 'docker build -t %IMAGE% .'
+      }
+    }
+
+    stage('Docker login (pre-push)') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: env.DOCKER_CRED, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+          bat 'echo Logging into Docker before push...'
+          bat 'echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin'
+        }
       }
     }
 
     stage('Push image') {
       steps {
-        withCredentials([usernamePassword(credentialsId: env.DOCKER_CRED, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-          bat 'echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin'
-          bat 'docker push %IMAGE%'
-        }
+        bat 'docker push %IMAGE%'
       }
     }
 
-    stage('Deploy') {
+    stage('Deploy to k8s') {
       steps {
         bat 'kubectl apply -f k8s/deployment.yaml'
+        bat 'kubectl apply -f k8s/service.yaml'
       }
     }
   }
 
-  post { always { echo 'Pipeline finished' } }
+  post {
+    always { echo 'Pipeline finished' }
+    success { echo 'Pipeline succeeded' }
+    failure { echo 'Pipeline failed — check console output' }
+  }
 }
