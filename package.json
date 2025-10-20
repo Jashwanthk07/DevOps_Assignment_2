@@ -1,0 +1,12 @@
+{
+  "name": "ticket-booking",
+  "version": "1.0.0",
+  "description": "Simple ticket booking app for DevOps assignment",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
