@@ -1,185 +1,169 @@
-DevOps CI/CD Pipeline — Jenkins + Docker + GitHub + ngrok
+# DevOps CI/CD Pipeline — Jenkins + Docker + GitHub + ngrok
 
-This project demonstrates a complete end-to-end DevOps workflow where Jenkins automatically builds, tests, and deploys a Dockerized application whenever code is pushed to GitHub.
-It uses ngrok to expose your local Jenkins server to the internet securely, enabling real-time GitHub webhook triggers.
+This repository demonstrates a complete end-to-end DevOps workflow where Jenkins builds, tests, and pushes a Dockerized application automatically when code is pushed to GitHub. It uses **ngrok** to expose a local Jenkins instance so GitHub webhooks can reach it during development.
 
-Table of Contents
+---
 
-Overview
+## Table of Contents
+- [Overview](#overview)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Setup Instructions](#setup-instructions)
+  - [Prerequisites](#prerequisites)
+  - [Clone Repository](#clone-repository)
+  - [Configure Docker](#configure-docker)
+  - [Configure Jenkins](#configure-jenkins)
+  - [Add Jenkins Credentials](#add-jenkins-credentials)
+  - [Expose Jenkins with ngrok](#expose-jenkins-with-ngrok)
+  - [Add GitHub Webhook](#add-github-webhook)
+- [Pipeline Stages Explained](#pipeline-stages-explained)
+- [Example Jenkinsfile](#example-jenkinsfile)
+- [Example Dockerfile](#example-dockerfile)
+- [Common Errors & Fixes](#common-errors--fixes)
+- [Troubleshooting](#troubleshooting)
+- [Future Improvements](#future-improvements)
+- [License](#license)
 
-Tech Stack
+---
 
-Architecture
+## Overview
 
-Setup Instructions
+This pipeline automates:
+1. GitHub webhook → triggers Jenkins on push  
+2. Jenkins pipeline → builds Docker image and pushes to Docker Hub  
+3. ngrok → exposes Jenkins to the internet (for webhooks during local development)
 
-1. Prerequisites
+---
 
-2. Clone Repository
+## Tech Stack
 
-3. Configure Docker
+- Jenkins (Pipeline)
+- Docker (build & push)
+- GitHub (source + webhooks)
+- ngrok (tunnel for local dev)
+- Windows PowerShell / Linux Shell
 
-4. Configure Jenkins
+---
 
-5. Add Jenkins Credentials
+## Architecture
 
-6. Expose Jenkins with ngrok
+Developer → GitHub (push) → GitHub Webhook → ngrok Tunnel → Jenkins → Docker Hub
 
-7. Add GitHub Webhook
 
-Pipeline Stages Explained
+---
 
-Example Jenkinsfile
+## Setup Instructions
 
-Common Errors & Fixes
+### Prerequisites
+- Docker Desktop installed and running
+- Jenkins installed (or run as Docker container)
+- Git installed
+- ngrok installed
+- GitHub account and Docker Hub account
 
-Troubleshooting
-
-Future Improvements
-
-License
-
-Overview
-
-This pipeline automates the build and deployment process using:
-
-GitHub Webhook → triggers Jenkins on every push
-
-Jenkins Pipeline → pulls source code, builds Docker image, and pushes it to Docker Hub
-
-ngrok → provides a secure public URL for Jenkins (required for GitHub webhooks when Jenkins runs locally)
-
-Tech Stack
-Component	Purpose
-Jenkins	Continuous Integration server
-Docker	Containerization platform
-GitHub	Source code hosting & webhook trigger
-ngrok	Expose localhost to the internet
-Windows PowerShell / Linux Shell	Command execution environment
-Architecture
-┌──────────┐       Push code        ┌────────────┐
-│ Developer│ ─────────────────────▶ │ GitHub Repo│
-└──────────┘                        └─────┬──────┘
-                                          │ (Webhook)
-                                          ▼
-                                  ┌────────────────┐
-                                  │  ngrok Tunnel  │
-                                  │(public URL →   │
-                                  │ localhost:8080)│
-                                  └─────┬──────────┘
-                                        │
-                                        ▼
-                                ┌─────────────┐
-                                │   Jenkins   │
-                                │Build, Test, │
-                                │ Docker Push │
-                                └────┬────────┘
-                                     │
-                                     ▼
-                                ┌────────────┐
-                                │ Docker Hub │
-                                │ (Registry) │
-                                └────────────┘
-
-Setup Instructions
-1Prerequisites
-
-Install the following tools:
-
-Docker Desktop
-
-Jenkins
-
-Git
-
-ngrok
-
-A GitHub
- and Docker Hub
- account
-
-2️ Clone Repository
+### Clone Repository
+```bash
 git clone https://github.com/<your-username>/<your-repo>.git
 cd <your-repo>
+```
 
-3️ Configure Docker
+### Configure Docker
 
-Log in to Docker Hub locally to verify credentials:
-
+Login to verify Docker setup:
+```
 docker login
+```
 
-4️ Configure Jenkins
+This ensures your Docker Hub credentials or PAT (Personal Access Token) work correctly.
 
-Open Jenkins at http://localhost:8080
+### Configure Jenkins
 
-Install recommended plugins
+#### Open Jenkins: http://localhost:8080
 
-Create a Freestyle or Pipeline job
+#### Install plugins:
 
-Select:
+1. Git
 
-Source Code Management: Git
+2. Pipeline
 
-Repository URL: your GitHub repo link
+3. Docker Pipeline
 
-Build Triggers: ✅ GitHub hook trigger for GITScm polling
+4. Credentials Binding
 
-5️ Add Jenkins Credentials
+5. GitHub Integration
+
+#### Create a Pipeline Job.
+
+#### Under Build Triggers, enable:
+
+✅ “GitHub hook trigger for GITScm polling”
+
+### Add Jenkins Credentials
 
 Go to:
-
 Manage Jenkins → Credentials → (global) → Add Credentials
 
+Fill:
 
-Kind: Username with password
+Username: your Docker Hub username
 
-Username: your Docker ID
-
-Password: your Docker Personal Access Token (PAT)
+Password: your Docker Hub PAT
 
 ID: dockerhub-cred-id
 
-Description: Docker Hub Login
+Description: Docker Hub Login Credentials
 
-6️ Expose Jenkins with ngrok
+💡 If you prefer, store only your PAT as Secret text and hardcode username in Jenkinsfile.
 
-Run Jenkins on port 8080, then open a terminal and run:
+### Expose Jenkins with ngrok
 
+Run ngrok to expose Jenkins (running on port 8080):
+```
 ngrok http 8080
 
+```
+You’ll get output like:
+```
+Forwarding  https://abc123.ngrok-free.app → http://localhost:8080
+```
 
-ngrok will generate a public URL, e.g.:
+Copy this public HTTPS URL.
 
-https://randomstring.ngrok-free.app
-
-7️ Add GitHub Webhook
-
-In your GitHub repo:
-
-Settings → Webhooks → Add Webhook
+If you see:
+```
+ERR_NGROK_15013
 
 
-Fill these:
+→ open C:\Users\<you>\AppData\Local\ngrok\ngrok.yml and remove any hostname: or dev_domain: lines.
+```
+### Add GitHub Webhook
 
-Payload URL:
-https://randomstring.ngrok-free.app/github-webhook/
+In your GitHub repository:
+
+Go to Settings → Webhooks → Add Webhook
+
+Enter:
+Payload URL: https://abc123.ngrok-free.app/github-webhook/
 
 Content type: application/json
 
-Event: “Just the push event”
+Event: Just the push event
 
-Secret (optional): your secret token
+Save.
 
-Click Add webhook ✅
+Then in Jenkins:
 
-Pipeline Stages Explained
-Stage	Purpose
-Checkout	Clones the GitHub repo into Jenkins workspace
-Build Image	Builds a Docker image from the Dockerfile
-Login	Authenticates to Docker Hub using Jenkins credentials
-Push Image	Pushes the built image to your Docker Hub repository
-Cleanup	Optionally removes local Docker images to free space
-Example Jenkinsfile
+Job → Configure → Build Triggers → ✅ “GitHub hook trigger for GITScm polling”
+
+## Pipeline Stages Explained
+Stages
+Checkout Code	: Pulls the latest code from GitHub
+Build Docker Image	: Builds Docker image using Dockerfile
+Login to Docker Hub	: Authenticates Jenkins to Docker Hub
+Push Image	: Pushes the image to your Docker repository
+Cleanup	: Optionally removes local Docker images
+## Example Jenkinsfile (Windows PowerShell)
+```
 pipeline {
     agent any
 
@@ -192,13 +176,11 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    docker.build('myapp:latest')
-                }
+                bat 'docker build -t myapp:latest .'
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Login & Push to Docker Hub') {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'dockerhub-cred-id', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
@@ -209,32 +191,82 @@ pipeline {
                 }
             }
         }
+
+        stage('Cleanup') {
+            steps {
+                bat 'docker rmi myapp:latest || exit 0'
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Pipeline completed successfully."
+        }
     }
 }
+```
+## Example Dockerfile
 
-Common Errors & Fixes
-Error	Cause	Solution
-ERR_NGROK_15013	ngrok requested an unassigned dev domain	Remove hostname: or claim domain in dashboard
-Selected Git installation does not exist	Jenkins missing Git path	Install Git and configure path in Jenkins
-docker: not found	Docker not installed on Jenkins agent	Install Docker & add to PATH
-unauthorized: authentication required	Invalid Docker credentials	Re-add Docker Hub PAT in Jenkins credentials
-Troubleshooting
+Here’s a simple example for a Node.js app:
+```
+# Base image
+FROM node:18-alpine
 
-Run ngrok http 8080 --log=stdout to see tunnel logs
+# Create app directory
+WORKDIR /usr/src/app
 
-Open http://127.0.0.1:4040 to inspect ngrok traffic
+# Copy dependencies
+COPY package*.json ./
 
-Verify GitHub webhook deliveries under Repo → Webhooks → Recent Deliveries
+# Install production dependencies
+RUN npm ci --only=production
 
-Check Jenkins console logs for detailed build status
+# Copy source code
+COPY . .
 
-Future Improvements
+# Expose port
+EXPOSE 8080
 
-Deploy automatically to a cloud provider (AWS ECS / Azure Container Apps)
+# Start application
+CMD ["node", "server.js"]
+```
+## Common Errors & Fixes
+Error	Cause	Fix
+ERR_NGROK_15013	ngrok config uses an unassigned dev domain	Remove hostname or dev_domain in ngrok.yml
+Selected Git installation does not exist	Jenkins Git path missing	Install Git & configure global tools
+docker: not found	Docker CLI missing on agent	Install Docker Desktop / add to PATH
+unauthorized: authentication required	Wrong Docker credentials	Re-add correct Docker Hub PAT in Jenkins credentials
+Webhook not triggering	Jenkins URL unreachable	Ensure ngrok tunnel is active and correct URL is in GitHub webhook
+## Troubleshooting
 
-Add email or Slack notifications after successful builds
+Run:
+``
+ngrok http 8080 --log=stdout
+``
 
-Integrate vulnerability scanning (Trivy, Grype) before pushing images
+to view tunnel logs.
 
-Add multi-branch pipeline with different environments (dev/stage/prod)
+Open ngrok dashboard:
 
+http://127.0.0.1:4040
+
+
+to inspect requests.
+
+Check GitHub webhook logs under:
+
+GitHub → Repo → Settings → Webhooks → Recent Deliveries
+
+
+Check Jenkins console output for pipeline failure details.
+
+## Future Improvements
+
+Multi-branch pipeline setup for different environments
+
+Auto-deploy Docker image to AWS ECS or Kubernetes
+
+Integrate Trivy/Grype for image vulnerability scanning
+
+Add Slack or Teams notifications for build results
