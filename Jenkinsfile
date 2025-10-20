@@ -2,28 +2,37 @@ pipeline {
   agent any
 
   environment {
-    IMAGE = "jashwanth00/ticket-booking:latest"
-    DOCKER_CRED = "jashwanth00"
+    IMAGE = "jashwanth00/ticket-booking:latest"   // set your image
+    DOCKER_CRED = "jashwanth00"            // your Jenkins credential id
   }
 
   stages {
     stage('Checkout') {
+      steps { checkout scm }
+    }
+
+    stage('Docker login') {
       steps {
-        checkout scm
+        // Perform docker login before any docker build/pull happens
+        withCredentials([usernamePassword(credentialsId: env.DOCKER_CRED, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+          // for Windows agents (bat)
+          bat 'echo Logging into Docker...'
+          bat 'echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin'
+        }
       }
     }
 
     stage('Tool check') {
       steps {
-        bat 'echo Node version && node -v'
-        bat 'echo NPM version && npm -v'
-        bat 'echo Docker version && docker --version'
-        bat 'echo Kubectl client version && kubectl version --client'
+        bat 'node -v'
+        bat 'docker --version'
       }
     }
 
     stage('Build image') {
       steps {
+        // Optionally disable BuildKit if you want classic build:
+        // bat 'set DOCKER_BUILDKIT=0 && docker build -t %IMAGE% .'
         bat 'docker build -t %IMAGE% .'
       }
     }
@@ -37,17 +46,12 @@ pipeline {
       }
     }
 
-    stage('Deploy to k8s') {
+    stage('Deploy') {
       steps {
         bat 'kubectl apply -f k8s/deployment.yaml'
-        bat 'kubectl apply -f k8s/service.yaml'
       }
     }
   }
 
-  post {
-    always {
-      echo 'Pipeline finished'
-    }
-  }
+  post { always { echo 'Pipeline finished' } }
 }
