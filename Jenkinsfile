@@ -3,7 +3,7 @@ pipeline {
 
   environment {
     IMAGE = "jashwanth00/ticket-booking:latest"
-    DOCKER_CRED = "dockerhub-cred-id"
+    DOCKER_CRED = "jashwanth00"
   }
 
   stages {
